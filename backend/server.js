@@ -4,6 +4,7 @@ const cors = require('cors');
 const axios = require('axios');
 const qs = require('qs');
 const mongoose = require('mongoose');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 // Initialize Express
 const app = express();
@@ -30,6 +31,7 @@ const paymentSchema = new mongoose.Schema({
   transactionId: String,
   status: String,
   responseText: String,
+  paymentMethod: String, // 'stripe' or 'westcoast'
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -57,8 +59,59 @@ function detectCardType(cardNumber) {
   return 'Unknown';
 }
 
-// Payment endpoint
-app.post('/api/pay', async (req, res) => {
+// Stripe payment endpoint
+app.post('/api/pay/stripe', async (req, res) => {
+  try {
+    const {
+      token,
+      amount,
+      firstname,
+      lastname,
+      email
+    } = req.body;
+
+    // Convert amount to cents (Stripe uses smallest currency unit)
+    const amountInCents = Math.round(amount * 100);
+
+    // Create charge with Stripe
+    const charge = await stripe.charges.create({
+      amount: amountInCents,
+      currency: 'usd',
+      source: token,
+      description: `Payment for ${firstname} ${lastname} (${email})`
+    });
+
+    // Save to database
+    const payment = new Payment({
+      firstName: firstname,
+      lastName: lastname,
+      email,
+      amount,
+      cardType: charge.payment_method_details?.card?.brand || 'Unknown',
+      lastFour: charge.payment_method_details?.card?.last4 || '****',
+      transactionId: charge.id,
+      status: charge.status,
+      responseText: 'Stripe payment processed',
+      paymentMethod: 'stripe'
+    });
+
+    await payment.save();
+
+    res.status(200).json({ 
+      success: true, 
+      data: charge 
+    });
+  } catch (err) {
+    console.error('Stripe payment error:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Stripe payment processing failed'
+    });
+  }
+});
+
+// West Coast payment endpoint
+app.post('/api/pay/westcoast', async (req, res) => {
   try {
     const {
       ccnumber,
@@ -99,7 +152,7 @@ app.post('/api/pay', async (req, res) => {
     });
 
     const response = await axios.post(
-      'https://westcoast-processing.transactiongateway.com/api/transact.php',
+      process.env.NMI_API_URL,
       postData,
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
     );
@@ -111,10 +164,6 @@ app.post('/api/pay', async (req, res) => {
       parsed[key] = decodeURIComponent(rest.join('='));
     });
 
-    // Add additional info
-    parsed.card_type = cardType;
-    parsed.ccnumber = lastFour;
-
     // Save to database
     const payment = new Payment({
       firstName: firstname,
@@ -125,7 +174,8 @@ app.post('/api/pay', async (req, res) => {
       lastFour,
       transactionId: parsed.transactionid,
       status: parsed.response === '1' ? 'approved' : 'declined',
-      responseText: parsed.responsetext
+      responseText: parsed.responsetext,
+      paymentMethod: 'westcoast'
     });
 
     await payment.save();
@@ -143,7 +193,7 @@ app.post('/api/pay', async (req, res) => {
       });
     }
   } catch (err) {
-    console.error('Payment error:', err.response?.data || err.message);
+    console.error('West Coast payment error:', err.response?.data || err.message);
     res.status(500).json({
       success: false,
       error: err.response?.data?.message || err.message || 'Payment processing failed'
