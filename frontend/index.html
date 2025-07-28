@@ -4,15 +4,9 @@
   <meta charset="UTF-8">
   <title>West Coast Payment Demo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
+    * { box-sizing: border-box; }
     body {
       font-family: 'Poppins', sans-serif;
       margin: 0;
@@ -21,7 +15,6 @@
       height: 100vh;
       overflow-y: auto;
     }
-
     .container {
       max-width: 450px;
       background: #fff;
@@ -30,20 +23,17 @@
       border-radius: 15px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     }
-
     h2 {
       text-align: center;
       margin-bottom: 25px;
       color: #333;
     }
-
     label {
       font-weight: 600;
       margin-top: 12px;
       display: block;
       color: #444;
     }
-
     input {
       width: 100%;
       padding: 12px 10px;
@@ -52,12 +42,10 @@
       border: 1px solid #ccc;
       transition: border 0.3s ease;
     }
-
     input:focus {
       outline: none;
       border-color: #4a90e2;
     }
-
     button {
       width: 100%;
       background-color: #4a90e2;
@@ -71,27 +59,30 @@
       cursor: pointer;
       transition: background 0.3s ease;
     }
-
     button:hover {
       background-color: #3d7ac6;
     }
-
     #result {
       margin-top: 20px;
       padding: 15px;
       border-radius: 10px;
     }
-
-    @media screen and (max-height: 600px) {
-      body {
-        height: auto;
-      }
-
-      .container {
-        margin: 20px;
-      }
+    .card-icons {
+      display: flex;
+      gap: 10px;
+      margin-top: 5px;
     }
-
+    .card-icon {
+      height: 24px;
+      opacity: 0.3;
+    }
+    .card-icon.active {
+      opacity: 1;
+    }
+    @media screen and (max-height: 600px) {
+      body { height: auto; }
+      .container { margin: 20px; }
+    }
   </style>
 </head>
 <body>
@@ -117,7 +108,7 @@
       <input type="text" name="zip" required>
 
       <label>Country:</label>
-      <input type="text" name="country" required>
+      <input type="text" name="country" required value="US">
 
       <label>Phone:</label>
       <input type="text" name="phone" required>
@@ -125,19 +116,23 @@
       <label>Email:</label>
       <input type="email" name="email" required>
 
-      <label>Card Number:</label>
-      <input type="text" name="ccnumber" required>
+      <label>Card Number (Credit/Debit):</label>
+      <input type="text" name="ccnumber" required placeholder="4242 4242 4242 4242">
+      <div class="card-icons">
+        <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/visa/visa-original.svg" class="card-icon" id="visa-icon">
+        <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mastercard/mastercard-original.svg" class="card-icon" id="mastercard-icon">
+      </div>
 
       <label>Expiry (MMYY):</label>
       <input type="text" name="ccexp" required placeholder="1028">
 
       <label>CVV:</label>
-      <input type="text" name="cvv" required>
+      <input type="text" name="cvv" required placeholder="123">
 
       <label>Amount (USD):</label>
-      <input type="number" name="amount" step="0.01" required>
+      <input type="number" name="amount" step="0.01" required value="10.00">
 
-      <button type="submit">Pay</button>
+      <button type="submit">Pay Now</button>
     </form>
 
     <div id="result"></div>
@@ -146,14 +141,39 @@
   <script>
     const form = document.getElementById('paymentForm');
     const resultDiv = document.getElementById('result');
+    const visaIcon = document.getElementById('visa-icon');
+    const mastercardIcon = document.getElementById('mastercard-icon');
+
+    // Card type detection
+    document.querySelector('input[name="ccnumber"]').addEventListener('input', (e) => {
+      const cardNumber = e.target.value.replace(/\s+/g, '');
+      
+      // Visa (starts with 4)
+      if (/^4/.test(cardNumber)) {
+        visaIcon.classList.add('active');
+        mastercardIcon.classList.remove('active');
+      } 
+      // Mastercard (starts with 51-55 or 2221-2720)
+      else if (/^5[1-5]|^2[2-7]/.test(cardNumber)) {
+        visaIcon.classList.remove('active');
+        mastercardIcon.classList.add('active');
+      } else {
+        visaIcon.classList.remove('active');
+        mastercardIcon.classList.remove('active');
+      }
+    });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Processing...';
+      
       const formData = new FormData(form);
-      const payload = {};
-      formData.forEach((value, key) => {
-        payload[key] = value;
-      });
+      const payload = Object.fromEntries(formData.entries());
+      
+      // Format card number (remove spaces)
+      payload.ccnumber = payload.ccnumber.replace(/\s+/g, '');
 
       try {
         const res = await fetch('http://localhost:3000/api/pay', {
@@ -165,26 +185,31 @@
         const data = await res.json();
         if (data.success) {
           const d = data.data;
-          resultDiv.style.color = 'green';
+          resultDiv.style.background = '#e8f5e9';
+          resultDiv.style.color = '#2e7d32';
           resultDiv.innerHTML = `
             <h3>✅ Payment Successful</h3>
             <ul>
+              <li><strong>Amount:</strong> $${d.amount}</li>
               <li><strong>Response:</strong> ${d.response}</li>
-              <li><strong>Text:</strong> ${d.responsetext}</li>
+              <li><strong>Message:</strong> ${d.responsetext}</li>
               <li><strong>Transaction ID:</strong> ${d.transactionid}</li>
-              <li><strong>Auth Code:</strong> ${d.authcode}</li>
-              <li><strong>AVS Response:</strong> ${d.avsresponse}</li>
-              <li><strong>CVV Response:</strong> ${d.cvvresponse}</li>
-              <li><strong>Response Code:</strong> ${d.response_code}</li>
+              <li><strong>Auth Code:</strong> ${d.authcode || 'N/A'}</li>
+              <li><strong>Card:</strong> ${d.card_type || 'Credit/Debit'} (${d.ccnumber?.slice(-4)})</li>
             </ul>
           `;
         } else {
-          resultDiv.style.color = 'red';
-          resultDiv.innerHTML = `<pre>❌ ${data.error}</pre>`;
+          resultDiv.style.background = '#ffebee';
+          resultDiv.style.color = '#c62828';
+          resultDiv.innerHTML = `<h3>❌ Payment Failed</h3><p>${data.error}</p>`;
         }
       } catch (err) {
-        resultDiv.style.color = 'red';
-        resultDiv.innerHTML = `<pre>❌ Network Error:\n${err.message}</pre>`;
+        resultDiv.style.background = '#ffebee';
+        resultDiv.style.color = '#c62828';
+        resultDiv.innerHTML = `<h3>❌ Network Error</h3><p>${err.message}</p>`;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Pay Now';
       }
     });
   </script>
