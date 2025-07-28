@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>West Coast Payment Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #a1c4fd, #c2e9fb);
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .container {
+      max-width: 450px;
+      background: #fff;
+      margin: 40px auto;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 25px;
+      color: #333;
+    }
+
+    label {
+      font-weight: 600;
+      margin-top: 12px;
+      display: block;
+      color: #444;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 10px;
+      margin-top: 6px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      transition: border 0.3s ease;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #4a90e2;
+    }
+
+    button {
+      width: 100%;
+      background-color: #4a90e2;
+      color: white;
+      padding: 14px;
+      margin-top: 20px;
+      font-size: 16px;
+      font-weight: bold;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #3d7ac6;
+    }
+
+    #result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 10px;
+    }
+
+    @media screen and (max-height: 600px) {
+      body {
+        height: auto;
+      }
+
+      .container {
+        margin: 20px;
+      }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Make Payment</h2>
+    <form id="paymentForm">
+      <label>First Name:</label>
+      <input type="text" name="firstname" required>
+
+      <label>Last Name:</label>
+      <input type="text" name="lastname" required>
+
+      <label>Address:</label>
+      <input type="text" name="address1" required>
+
+      <label>City:</label>
+      <input type="text" name="city" required>
+
+      <label>State:</label>
+      <input type="text" name="state" required>
+
+      <label>Zip:</label>
+      <input type="text" name="zip" required>
+
+      <label>Country:</label>
+      <input type="text" name="country" required>
+
+      <label>Phone:</label>
+      <input type="text" name="phone" required>
+
+      <label>Email:</label>
+      <input type="email" name="email" required>
+
+      <label>Card Number:</label>
+      <input type="text" name="ccnumber" required>
+
+      <label>Expiry (MMYY):</label>
+      <input type="text" name="ccexp" required placeholder="1028">
+
+      <label>CVV:</label>
+      <input type="text" name="cvv" required>
+
+      <label>Amount (USD):</label>
+      <input type="number" name="amount" step="0.01" required>
+
+      <button type="submit">Pay</button>
+    </form>
+
+    <div id="result"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('paymentForm');
+    const resultDiv = document.getElementById('result');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const payload = {};
+      formData.forEach((value, key) => {
+        payload[key] = value;
+      });
+
+      try {
+        const res = await fetch('http://localhost:3000/api/pay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          const d = data.data;
+          resultDiv.style.color = 'green';
+          resultDiv.innerHTML = `
+            <h3>✅ Payment Successful</h3>
+            <ul>
+              <li><strong>Response:</strong> ${d.response}</li>
+              <li><strong>Text:</strong> ${d.responsetext}</li>
+              <li><strong>Transaction ID:</strong> ${d.transactionid}</li>
+              <li><strong>Auth Code:</strong> ${d.authcode}</li>
+              <li><strong>AVS Response:</strong> ${d.avsresponse}</li>
+              <li><strong>CVV Response:</strong> ${d.cvvresponse}</li>
+              <li><strong>Response Code:</strong> ${d.response_code}</li>
+            </ul>
+          `;
+        } else {
+          resultDiv.style.color = 'red';
+          resultDiv.innerHTML = `<pre>❌ ${data.error}</pre>`;
+        }
+      } catch (err) {
+        resultDiv.style.color = 'red';
+        resultDiv.innerHTML = `<pre>❌ Network Error:\n${err.message}</pre>`;
+      }
+    });
+  </script>
+</body>
+</html>
