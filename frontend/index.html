@@ -2,17 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>West Coast Payment Demo</title>
+  <title>Payment Demo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-
+  <script src="https://js.stripe.com/v3/"></script>
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
+    * { box-sizing: border-box; }
     body {
       font-family: 'Poppins', sans-serif;
       margin: 0;
@@ -21,7 +16,6 @@
       height: 100vh;
       overflow-y: auto;
     }
-
     .container {
       max-width: 450px;
       background: #fff;
@@ -30,20 +24,17 @@
       border-radius: 15px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     }
-
     h2 {
       text-align: center;
       margin-bottom: 25px;
       color: #333;
     }
-
     label {
       font-weight: 600;
       margin-top: 12px;
       display: block;
       color: #444;
     }
-
     input {
       width: 100%;
       padding: 12px 10px;
@@ -52,12 +43,10 @@
       border: 1px solid #ccc;
       transition: border 0.3s ease;
     }
-
     input:focus {
       outline: none;
       border-color: #4a90e2;
     }
-
     button {
       width: 100%;
       background-color: #4a90e2;
@@ -71,73 +60,121 @@
       cursor: pointer;
       transition: background 0.3s ease;
     }
-
     button:hover {
       background-color: #3d7ac6;
     }
-
     #result {
       margin-top: 20px;
       padding: 15px;
       border-radius: 10px;
     }
-
-    @media screen and (max-height: 600px) {
-      body {
-        height: auto;
-      }
-
-      .container {
-        margin: 20px;
-      }
+    .card-icons {
+      display: flex;
+      gap: 10px;
+      margin-top: 5px;
     }
-
+    .card-icon {
+      height: 24px;
+      opacity: 0.3;
+    }
+    .card-icon.active {
+      opacity: 1;
+    }
+    .payment-method {
+      display: flex;
+      margin-bottom: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .payment-method-option {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .payment-method-option.active {
+      background: #4a90e2;
+      color: white;
+    }
+    .stripe-card-element {
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-top: 6px;
+    }
+    @media screen and (max-height: 600px) {
+      body { height: auto; }
+      .container { margin: 20px; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h2>Make Payment</h2>
+    
+    <div class="payment-method">
+      <div class="payment-method-option active" id="westcoast-option">Credit Card</div>
+      <div class="payment-method-option" id="stripe-option">Stripe</div>
+    </div>
+    
     <form id="paymentForm">
+      <!-- Common fields -->
       <label>First Name:</label>
       <input type="text" name="firstname" required>
 
       <label>Last Name:</label>
       <input type="text" name="lastname" required>
 
-      <label>Address:</label>
-      <input type="text" name="address1" required>
-
-      <label>City:</label>
-      <input type="text" name="city" required>
-
-      <label>State:</label>
-      <input type="text" name="state" required>
-
-      <label>Zip:</label>
-      <input type="text" name="zip" required>
-
-      <label>Country:</label>
-      <input type="text" name="country" required>
-
-      <label>Phone:</label>
-      <input type="text" name="phone" required>
-
       <label>Email:</label>
       <input type="email" name="email" required>
 
-      <label>Card Number:</label>
-      <input type="text" name="ccnumber" required>
-
-      <label>Expiry (MMYY):</label>
-      <input type="text" name="ccexp" required placeholder="1028">
-
-      <label>CVV:</label>
-      <input type="text" name="cvv" required>
-
       <label>Amount (USD):</label>
-      <input type="number" name="amount" step="0.01" required>
+      <input type="number" name="amount" step="0.01" required value="10.00">
 
-      <button type="submit">Pay</button>
+      <!-- West Coast fields (shown by default) -->
+      <div id="westcoast-fields">
+        <label>Address:</label>
+        <input type="text" name="address1" required>
+
+        <label>City:</label>
+        <input type="text" name="city" required>
+
+        <label>State:</label>
+        <input type="text" name="state" required>
+
+        <label>Zip:</label>
+        <input type="text" name="zip" required>
+
+        <label>Country:</label>
+        <input type="text" name="country" required value="US">
+
+        <label>Phone:</label>
+        <input type="text" name="phone" required>
+
+        <label>Card Number (Credit/Debit):</label>
+        <input type="text" name="ccnumber" required placeholder="4242 4242 4242 4242">
+        <div class="card-icons">
+          <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/visa/visa-original.svg" class="card-icon" id="visa-icon">
+          <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mastercard/mastercard-original.svg" class="card-icon" id="mastercard-icon">
+        </div>
+
+        <label>Expiry (MMYY):</label>
+        <input type="text" name="ccexp" required placeholder="1028">
+
+        <label>CVV:</label>
+        <input type="text" name="cvv" required placeholder="123">
+      </div>
+
+      <!-- Stripe fields (hidden by default) -->
+      <div id="stripe-fields" style="display: none;">
+        <label>Card Details:</label>
+        <div id="card-element" class="stripe-card-element"></div>
+        <div id="card-errors" role="alert" style="color: #fa755a;"></div>
+      </div>
+
+      <button type="submit">Pay Now</button>
     </form>
 
     <div id="result"></div>
@@ -146,45 +183,138 @@
   <script>
     const form = document.getElementById('paymentForm');
     const resultDiv = document.getElementById('result');
+    const visaIcon = document.getElementById('visa-icon');
+    const mastercardIcon = document.getElementById('mastercard-icon');
+    const westcoastFields = document.getElementById('westcoast-fields');
+    const stripeFields = document.getElementById('stripe-fields');
+    const westcoastOption = document.getElementById('westcoast-option');
+    const stripeOption = document.getElementById('stripe-option');
+    
+    // Initialize Stripe
+    const stripe = Stripe('<?php echo $stripe_publishable_key; ?>');
+    const elements = stripe.elements();
+    const cardElement = elements.create('card');
+    cardElement.mount('#card-element');
+
+    // Card type detection for West Coast
+    document.querySelector('input[name="ccnumber"]')?.addEventListener('input', (e) => {
+      const cardNumber = e.target.value.replace(/\s+/g, '');
+      
+      // Visa (starts with 4)
+      if (/^4/.test(cardNumber)) {
+        visaIcon.classList.add('active');
+        mastercardIcon.classList.add('active');
+      } 
+      // Mastercard (starts with 51-55 or 2221-2720)
+      else if (/^5[1-5]|^2[2-7]/.test(cardNumber)) {
+        visaIcon.classList.remove('active');
+        mastercardIcon.classList.add('active');
+      } else {
+        visaIcon.classList.remove('active');
+        mastercardIcon.classList.remove('active');
+      }
+    });
+
+    // Payment method toggle
+    westcoastOption.addEventListener('click', () => {
+      westcoastOption.classList.add('active');
+      stripeOption.classList.remove('active');
+      westcoastFields.style.display = 'block';
+      stripeFields.style.display = 'none';
+    });
+
+    stripeOption.addEventListener('click', () => {
+      stripeOption.classList.add('active');
+      westcoastOption.classList.remove('active');
+      stripeFields.style.display = 'block';
+      westcoastFields.style.display = 'none';
+    });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Processing...';
+      
       const formData = new FormData(form);
-      const payload = {};
-      formData.forEach((value, key) => {
-        payload[key] = value;
-      });
-
+      const payload = Object.fromEntries(formData.entries());
+      
       try {
-        const res = await fetch('http://localhost:3000/api/pay', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          const d = data.data;
-          resultDiv.style.color = 'green';
-          resultDiv.innerHTML = `
-            <h3>✅ Payment Successful</h3>
-            <ul>
-              <li><strong>Response:</strong> ${d.response}</li>
-              <li><strong>Text:</strong> ${d.responsetext}</li>
-              <li><strong>Transaction ID:</strong> ${d.transactionid}</li>
-              <li><strong>Auth Code:</strong> ${d.authcode}</li>
-              <li><strong>AVS Response:</strong> ${d.avsresponse}</li>
-              <li><strong>CVV Response:</strong> ${d.cvvresponse}</li>
-              <li><strong>Response Code:</strong> ${d.response_code}</li>
-            </ul>
-          `;
+        if (stripeOption.classList.contains('active')) {
+          // Stripe payment
+          const { token, error } = await stripe.createToken(cardElement);
+          
+          if (error) {
+            throw new Error(error.message);
+          }
+          
+          const res = await fetch('http://localhost:3000/api/pay/stripe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token: token.id,
+              amount: payload.amount,
+              firstname: payload.firstname,
+              lastname: payload.lastname,
+              email: payload.email
+            })
+          });
+          
+          const data = await res.json();
+          if (data.success) {
+            const d = data.data;
+            resultDiv.style.background = '#e8f5e9';
+            resultDiv.style.color = '#2e7d32';
+            resultDiv.innerHTML = `
+              <h3>✅ Stripe Payment Successful</h3>
+              <ul>
+                <li><strong>Amount:</strong> $${(d.amount / 100).toFixed(2)}</li>
+                <li><strong>Status:</strong> ${d.status}</li>
+                <li><strong>Transaction ID:</strong> ${d.id}</li>
+                <li><strong>Card:</strong> ${d.payment_method_details?.card?.brand || 'Card'} ending in ${d.payment_method_details?.card?.last4 || '****'}</li>
+              </ul>
+            `;
+          } else {
+            throw new Error(data.error);
+          }
         } else {
-          resultDiv.style.color = 'red';
-          resultDiv.innerHTML = `<pre>❌ ${data.error}</pre>`;
+          // West Coast payment
+          // Format card number (remove spaces)
+          payload.ccnumber = payload.ccnumber.replace(/\s+/g, '');
+
+          const res = await fetch('http://localhost:3000/api/pay/westcoast', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          const data = await res.json();
+          if (data.success) {
+            const d = data.data;
+            resultDiv.style.background = '#e8f5e9';
+            resultDiv.style.color = '#2e7d32';
+            resultDiv.innerHTML = `
+              <h3>✅ Payment Successful</h3>
+              <ul>
+                <li><strong>Amount:</strong> $${d.amount}</li>
+                <li><strong>Response:</strong> ${d.response}</li>
+                <li><strong>Message:</strong> ${d.responsetext}</li>
+                <li><strong>Transaction ID:</strong> ${d.transactionid}</li>
+                <li><strong>Auth Code:</strong> ${d.authcode || 'N/A'}</li>
+                <li><strong>Card:</strong> ${d.card_type || 'Credit/Debit'} (${d.ccnumber?.slice(-4)})</li>
+              </ul>
+            `;
+          } else {
+            throw new Error(data.error || 'Payment declined');
+          }
         }
       } catch (err) {
-        resultDiv.style.color = 'red';
-        resultDiv.innerHTML = `<pre>❌ Network Error:\n${err.message}</pre>`;
+        resultDiv.style.background = '#ffebee';
+        resultDiv.style.color = '#c62828';
+        resultDiv.innerHTML = `<h3>❌ Payment Failed</h3><p>${err.message}</p>`;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Pay Now';
       }
     });
   </script>
